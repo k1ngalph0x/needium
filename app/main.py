@@ -3,11 +3,8 @@ import os
 import uvicorn
 import requests
 from config.settings import settings
-from pydantic import BaseModel
-from dotenv import load_dotenv
+from schemas.schema import QueryRequest
 from fastapi import FastAPI, HTTPException, UploadFile, File
-
-load_dotenv()
 
 UPLOAD_DIR = "uploaded_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -15,8 +12,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION
-    )
-
+)
 
 @app.post("/api/doc")
 async def upload_files(file: UploadFile = File(...)):
@@ -31,6 +27,22 @@ async def upload_files(file: UploadFile = File(...)):
         "content_type": file.content_type,
         "saved_path": file_path
     }
+
+@app.post("/api/ask")
+async def ask(query: QueryRequest):
+    try:
+        response = requests.post(
+            f"{settings.LLM_URL}/api/generate",
+            json={
+                "model": QueryRequest.model,
+                "prompt": QueryRequest.prompt,
+                "stream": False
+            }
+            )
+        response.raise_for_status()
+        return {"answer":response.json()["response"]}
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 if __name__ == "__main__":

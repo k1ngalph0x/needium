@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     VERSION: str = "0.0.1"
     ENVIRONMENT: str = "developement"
 
+    LLM_URL: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
