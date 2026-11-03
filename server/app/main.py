@@ -2,35 +2,40 @@
 import os
 import uvicorn
 import requests
+from config.settings import settings
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 
 load_dotenv()
 
-app = FastAPI()
+UPLOAD_DIR = "uploaded_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-LLM_URL = os.environ["LLM_URL"]
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION
+    )
 
-class Query(BaseModel):
-    prompt: str
-    model : str
 
-@app.post("/ask")
-async def ask(query: Query):
-    try:
-        response = requests.post(f"{LLM_URL}/api/generate", 
-        json={"model":query.model, 
-              "prompt":query.prompt,
-              "stream":False
-              }
-        )
-        response.raise_for_status()
-        return {"answer": response.json()["response"]}
-    except requests.RequestException as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/doc")
+async def upload_files(file: UploadFile = File(...)):
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    return {
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "saved_path": file_path
+    }
+
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run("main:app", port=8000, reload=True)
 
+
+    
 
